@@ -1,0 +1,45 @@
+# See https://pre-commit.com for more information.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.4.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: debug-statements
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.5.4
+    hooks:
+      - id: isort
+        additional_dependencies:
+          - 'toml'
+  - repo: https://github.com/psf/black
+    rev: 19.10b0
+    hooks:
+      - id: black
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.7.9
+    hooks:
+      - id: flake8
+        # Use only the repo's setup.cfg (ignore a dev's ~/.config/flake8)
+        args: [--config=setup.cfg]
+  - repo: local
+    hooks:
+      - id: requirements.txt
+        name: Check for stale requirements.txt
+        entry: make requirements.txt
+        language: system
+        files: ^(requirements.txt|.*\.in)$
+      # - id: clear-notebook-output
+      #   name: Clear notebook output
+      #   entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace
+      #   language: system
+      #   files: ^.*\.ipynb$
+  # Keep this hook as the very last!
+  - repo: local
+    hooks:
+      - id: prompt-add-modified-files
+        name: Prompt user to add files modified by the hooks.
+        entry: bash -c '[[ ! $(sort <(git diff --name-only --cached) <(git diff --name-only) | uniq -d) ]] || ( echo "Files were modified, please git add them."; exit 1 )'
+        language: system
+        pass_filenames: false

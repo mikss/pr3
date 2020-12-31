@@ -1,0 +1,6 @@
+black
+flake8
+isort[pyproject]
+pip-tools
+pip
+pre-commit
