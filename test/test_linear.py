@@ -7,8 +7,7 @@ def test_normalize(random_seed, p=100, q=2):
     np.random.seed(random_seed)
     v = np.random.normal(0, 1, (p,))
     projection = ProjectionVector()
-    projection.beta = v
-    projection._normalize(q=q)
+    projection.beta = projection._normalize(v, q)
     np.testing.assert_almost_equal(np.linalg.norm(projection.beta, ord=q), 1, decimal=15)
 
 

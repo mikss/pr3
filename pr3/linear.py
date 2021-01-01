@@ -8,8 +8,9 @@ from scipy.stats import gennorm
 class ProjectionVector:
     beta: np.ndarray
 
-    def _normalize(self, q: int = 2) -> None:
-        self.beta = self.beta / np.linalg.norm(self.beta, ord=q)
+    @staticmethod
+    def _normalize(v: np.ndarray, q: int = 2) -> np.ndarray:
+        return v / np.linalg.norm(v, ord=q)
 
 
 class ProjectionSampler(ProjectionVector):
@@ -18,26 +19,26 @@ class ProjectionSampler(ProjectionVector):
 
         Args:
             p: The dimension of the vector.
-            q: The order of ell^p unit ball from which to sample.
+            q: The order of ell^q unit ball from which to sample.
             sparsity: The number of non-zero coordinates; pass -1 for a dense vector.
             seed: NumPy random seed.
         """
         np.random.seed(seed)
         if sparsity > 0:
-            self.beta = np.zeros(p)
+            q_generalized_normal = np.zeros(p)
             idxs = np.random.choice(a=p, size=sparsity, replace=False)
-            self.beta[idxs] = gennorm.rvs(beta=q, size=sparsity)
+            q_generalized_normal[idxs] = gennorm.rvs(beta=q, size=sparsity)
         else:
-            self.beta = gennorm.rvs(beta=q, size=p)
-        self._normalize()
+            q_generalized_normal = gennorm.rvs(beta=q, size=p)
+        self.beta = self._normalize(v=q_generalized_normal, q=q)
 
 
-class LeastSquaresSufficientStatistics(ABC):
+class WeightedLeastSquaresSufficientStatistics(ABC):
     # TODO separate tests for each method
     beta: np.ndarray
 
     def fit(self, x: np.ndarray, y: np.ndarray, w: np.ndarray) -> None:
-        """Fit least squares linear regression model by first computing sufficient statistics.
+        """Fit weighted least squares linear regression model by first computing sufficient statistics.
 
         Args:
             x: design matrix of shape (n_samples, n_features)
@@ -63,4 +64,5 @@ class LeastSquaresSufficientStatistics(ABC):
     @abstractmethod
     def _fit_sufficient(self, xtx, xty):
         # TODO implement both ordinary linear algebraic method (least squares) and sparse method (LARS, iterative)
+        #  both with normalization, both inheriting this and the other
         ...
