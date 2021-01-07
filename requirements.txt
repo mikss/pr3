@@ -19,6 +19,7 @@ cfgv==3.2.0               # via pre-commit
 chardet==3.0.4            # via requests
 click==7.1.2              # via -r requirements/base.in, black, distributed, pip-tools
 cloudpickle==1.6.0        # via distributed
+coverage==5.3.1           # via -r requirements/test.in
 cycler==0.10.0            # via matplotlib
 dask==2.30.0              # via -r requirements/base.in, distributed
 decorator==4.4.2          # via ipython
@@ -128,4 +129,4 @@ zict==2.0.0               # via distributed
 # pip
 # setuptools
 
-# input sha: af9e4b48d7396485b0dbc9e9be6359f3e97698485aea4950b38d28d984d149fc  -
+# input sha: edc9cdef7bf9a111feee27b5deabad9202cdf9cf24e57503a7228ae4b45f6cf7  -

@@ -1,22 +1,38 @@
 import numpy as np
+import pytest
+from sklearn.metrics import r2_score
 
-from pr3.linear import ProjectionSampler, ProjectionVector
+from pr3.linear import LowerUpperRegressionProjection, ProjectionSampler, ProjectionVector
 
 
-def test_normalize(random_seed, p=100, q=2):
+def test_normalize(random_seed, p_dim, q_dim):
     np.random.seed(random_seed)
-    v = np.random.normal(0, 1, (p,))
-    projection = ProjectionVector()
-    projection.beta = projection._normalize(v, q)
-    np.testing.assert_almost_equal(np.linalg.norm(projection.beta, ord=q), 1, decimal=15)
+    projection = ProjectionVector(q=q_dim)
+    with pytest.raises(AttributeError):
+        projection._normalize()
+    projection.beta = np.random.normal(0, 1, (p_dim,))
+    projection._normalize()
+    np.testing.assert_almost_equal(np.linalg.norm(projection.beta, ord=q_dim), 1, decimal=15)
 
 
-def test_sampler(random_seed, p=100, q=2, sparsity=5):
+def test_sampler(random_seed, p_dim, q_dim, sparsity=5):
     np.random.seed(random_seed)
-    sparse_projection = ProjectionSampler(p=p, q=q, sparsity=sparsity)
-    dense_projection = ProjectionSampler(p=p, q=q)
+    sparse_projection = ProjectionSampler(p=p_dim, q=q_dim, sparsity=sparsity)
+    dense_projection = ProjectionSampler(p=p_dim, q=q_dim)
 
-    np.testing.assert_almost_equal(np.linalg.norm(sparse_projection.beta, ord=q), 1, decimal=15)
-    np.testing.assert_almost_equal(np.linalg.norm(dense_projection.beta, ord=q), 1, decimal=15)
+    np.testing.assert_almost_equal(np.linalg.norm(sparse_projection.beta, ord=q_dim), 1, decimal=15)
+    np.testing.assert_almost_equal(np.linalg.norm(dense_projection.beta, ord=q_dim), 1, decimal=15)
     assert np.count_nonzero(sparse_projection.beta) == sparsity
-    assert np.count_nonzero(dense_projection.beta) == p
+    assert np.count_nonzero(dense_projection.beta) == p_dim
+
+
+def test_regression_lu(random_seed, p_dim, q_dim, n_samples=10000, eps_std=100, r2_threshold=19e-4):
+    np.random.seed(random_seed)
+    eps = np.random.normal(0, eps_std, (n_samples, 1))
+    beta = ProjectionSampler(p=p_dim, q=q_dim, seed=random_seed).beta
+    x = np.random.normal(0, 1, (n_samples, p_dim))
+    y = x @ beta + eps
+    lurp = LowerUpperRegressionProjection(ridge=1.0)
+    lurp.fit_normalize(x, y)
+    y_hat = lurp.predict(x)
+    assert r2_score(y, y_hat) > r2_threshold
