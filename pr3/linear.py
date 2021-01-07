@@ -4,6 +4,8 @@ from typing import Optional, Tuple
 import numpy as np
 from scipy.stats import gennorm
 
+# from sklearn.linear_model import lars_path_gram
+
 
 class ProjectionVector:
     beta: np.ndarray
@@ -88,6 +90,9 @@ class LowerUpperRegressionProjection(SufficientStatisticsRegressionProjection):
     def __init__(self, q: int = 2, ridge: float = 0):
         """Instantiate a weighted least squares linear regression model with ridge regularization and q-normalized beta.
 
+        This implementation computes regression coefficients by solving a system of linear equations via the LU
+        decomposition, which is the technique implemented by `gesv`, the LAPACK routine called by `np.linalg.solve`.
+
         Args:
             q: The order of ell^q norm with which to normalize resultant beta.
             ridge: Regularization level.
@@ -99,4 +104,22 @@ class LowerUpperRegressionProjection(SufficientStatisticsRegressionProjection):
         self.beta = np.linalg.solve(xtx + self.ridge * np.eye(xtx.shape[0]), xty)
 
 
-# TODO sparse method (LARS, iterative)
+class LeastAngleRegressionProjection(SufficientStatisticsRegressionProjection):
+    max_iter: int
+
+    def __init__(self, q: int = 2, max_iter: int = 0):
+        """Instantiate a weighted least squares linear regression model with sparse and q-normalized beta.
+
+        This implementation computes regression coefficients by iteratively traversing the LASSO regularization path,
+        which serves as an efficient way to solve the l1-regularized least squares optimization problem (on par with,
+        say, FISTA, but typically more efficient than black-box quadratic programming methods).
+
+        Args:
+            q: The order of ell^q norm with which to normalize resultant beta.
+            max_iter: Maximum number of iterations.
+        """
+        super().__init__(q=q)
+        self.max_iter = max_iter
+
+    def _fit_sufficient(self, xtx, xty):
+        ...  # TODO using `lars_path_gram`, and add test
