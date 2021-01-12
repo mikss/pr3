@@ -3,8 +3,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 from scipy.stats import gennorm
-
-# from sklearn.linear_model import lars_path_gram
+from sklearn.linear_model import lars_path_gram
 
 
 class ProjectionVector:
@@ -23,7 +22,7 @@ class ProjectionVector:
 
 class ProjectionSampler(ProjectionVector):
     def __init__(self, p: int, q: int = 2, sparsity: int = -1, seed: Optional[int] = None):
-        """Generate a normalized random projection vector (for initialization purposes).
+        """Generates a normalized random projection vector (for initialization purposes).
 
         Args:
             p: The dimension of the vector.
@@ -45,7 +44,7 @@ class ProjectionSampler(ProjectionVector):
 
 class SufficientStatisticsRegressionProjection(ABC, ProjectionVector):
     def fit(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray] = None) -> None:
-        """Fit weighted least squares linear regression model by first computing sufficient statistics.
+        """Fits weighted least squares (WLS) linear regression model by first computing sufficient statistics.
 
         Args:
             x: design matrix of shape (n_samples, n_features)
@@ -54,14 +53,15 @@ class SufficientStatisticsRegressionProjection(ABC, ProjectionVector):
         """
         w = self._reshape_weights(x.shape[0], w)
         xtx, xty = self.compute_sufficient_statistics(x, y, w)
-        self._fit_sufficient(xtx, xty)
+        wess = self.compute_effective_sample_size(w)
+        self._fit_sufficient(xtx, xty, wess)
 
     def fit_normalize(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray] = None) -> None:
         self.fit(x, y, w)
         self._normalize()
 
     def predict(self, x: np.ndarray) -> np.ndarray:
-        """Predict from linear model."""
+        """Predicts from linear model."""
         return x @ self.beta
 
     @staticmethod
@@ -74,21 +74,26 @@ class SufficientStatisticsRegressionProjection(ABC, ProjectionVector):
     def compute_sufficient_statistics(
         x: np.ndarray, y: np.ndarray, w: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Compute sufficient statistics for least squares regression (Gram matrix xtx, cross matrix xty)."""
+        """Computes (weighted) sufficient statistics for WLS regression (Gram matrix xtx, cross matrix xty)."""
         xtx = np.multiply(x, w).T @ x / w.sum()
         xty = np.multiply(x, w).T @ y / w.sum()
         return xtx, xty
 
+    @staticmethod
+    def compute_effective_sample_size(w: np.ndarray) -> float:
+        """Computes effective sample size given sample weights."""
+        return w.sum() ** 2.0 / (w ** 2.0).sum()
+
     @abstractmethod
-    def _fit_sufficient(self, xtx, xty):
-        """Fit linear model using only second-order sufficient statistics."""
+    def _fit_sufficient(self, xtx, xty, wess):
+        """Fits linear model using only second-order sufficient statistics."""
 
 
 class LowerUpperRegressionProjection(SufficientStatisticsRegressionProjection):
     ridge: float
 
-    def __init__(self, q: int = 2, ridge: float = 0):
-        """Instantiate a weighted least squares linear regression model with ridge regularization and q-normalized beta.
+    def __init__(self, q: int = 2, ridge: float = 0.0):
+        """Instantiates a WLS linear regression model with ridge regularization and q-normalized beta.
 
         This implementation computes regression coefficients by solving a system of linear equations via the LU
         decomposition, which is the technique implemented by `gesv`, the LAPACK routine called by `np.linalg.solve`.
@@ -100,15 +105,16 @@ class LowerUpperRegressionProjection(SufficientStatisticsRegressionProjection):
         super().__init__(q=q)
         self.ridge = ridge
 
-    def _fit_sufficient(self, xtx, xty):
+    def _fit_sufficient(self, xtx, xty, wess):
         self.beta = np.linalg.solve(xtx + self.ridge * np.eye(xtx.shape[0]), xty)
 
 
 class LeastAngleRegressionProjection(SufficientStatisticsRegressionProjection):
     max_iter: int
+    min_corr: float
 
-    def __init__(self, q: int = 2, max_iter: int = 0):
-        """Instantiate a weighted least squares linear regression model with sparse and q-normalized beta.
+    def __init__(self, q: int = 2, max_iter: int = 100, min_corr: float = 5e-4):
+        """Instantiates a WLS linear regression model with sparse and q-normalized beta.
 
         This implementation computes regression coefficients by iteratively traversing the LASSO regularization path,
         which serves as an efficient way to solve the l1-regularized least squares optimization problem (on par with,
@@ -120,6 +126,19 @@ class LeastAngleRegressionProjection(SufficientStatisticsRegressionProjection):
         """
         super().__init__(q=q)
         self.max_iter = max_iter
+        self.min_corr = min_corr
 
-    def _fit_sufficient(self, xtx, xty):
-        ...  # TODO using `lars_path_gram`, and add test
+    def _fit_sufficient(self, xtx, xty, wess):
+        _beta = np.zeros(xty.shape)
+        for r in range(_beta.shape[1]):
+            a, _, coefs = lars_path_gram(
+                Xy=xty[:, 0],
+                Gram=xtx,
+                n_samples=wess,
+                max_iter=self.max_iter,
+                alpha_min=self.min_corr,
+                method="lasso",
+            )
+            _beta[:, r] = coefs[:, -1]
+            print(a)
+        self.beta = _beta

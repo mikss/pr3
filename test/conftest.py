@@ -14,3 +14,8 @@ def p_dim():
 @pytest.fixture
 def q_dim():
     return 2
+
+
+@pytest.fixture
+def sparsity():
+    return 10

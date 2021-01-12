@@ -1,3 +1,4 @@
+# TODO complete the implementation of the "inner loop" nonlinear univariate iteration
 # polynomial regression via numpy polyfit https://zerowithdot.com/polynomial-regression-in-python/
 # spline regression via scipy UnivariateSpline https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html
 # decision tree via sklearn https://en.wikipedia.org/wiki/Decision_tree_learning

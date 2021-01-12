@@ -1,4 +1,4 @@
-# TODO
+# TODO design the alternating minimization scheme:
 # https://github.com/pavel-aicradle/projection-pursuit/blob/master/skpp/skpp.py see use of mixins
 # https://scikit-learn.org/stable/modules/generated/sklearn.base.RegressorMixin.html sklearn
 # https://github.com/scikit-learn/scikit-learn/blob/0fb307bf39bbdacd6ed713c00724f8f871d60370/sklearn/base.py mixins
