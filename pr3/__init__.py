@@ -6,3 +6,4 @@
 # + wrap base class in sparse class and implement plotting functionality
 #   - link to [wiki](https://en.wikipedia.org/wiki/Projection_pursuit_regression)
 #   - sliced inverse: https://www.jstor.org/stable/2290563?seq=1
+# pass thru nonlinear_kwargs to nonlinear

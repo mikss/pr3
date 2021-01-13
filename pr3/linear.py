@@ -65,7 +65,7 @@ class SufficientStatisticsRegressionProjection(ABC, ProjectionVector):
         return x @ self.beta
 
     @staticmethod
-    def _reshape_weights(n: int, w: Optional[np.ndarray] = None):
+    def _reshape_weights(n: int, w: Optional[np.ndarray] = None) -> np.ndarray:
         if w is None:
             w = np.ones(n)
         return w.reshape((n, 1))
@@ -85,7 +85,7 @@ class SufficientStatisticsRegressionProjection(ABC, ProjectionVector):
         return w.sum() ** 2.0 / (w ** 2.0).sum()
 
     @abstractmethod
-    def _fit_sufficient(self, xtx, xty, wess):
+    def _fit_sufficient(self, xtx, xty, wess) -> None:
         """Fits linear model using only second-order sufficient statistics."""
 
 
@@ -105,7 +105,7 @@ class LowerUpperRegressionProjection(SufficientStatisticsRegressionProjection):
         super().__init__(q=q)
         self.ridge = ridge
 
-    def _fit_sufficient(self, xtx, xty, wess):
+    def _fit_sufficient(self, xtx, xty, wess) -> None:
         self.beta = np.linalg.solve(xtx + self.ridge * np.eye(xtx.shape[0]), xty)
 
 
@@ -128,7 +128,7 @@ class LeastAngleRegressionProjection(SufficientStatisticsRegressionProjection):
         self.max_iter = max_iter
         self.min_corr = min_corr
 
-    def _fit_sufficient(self, xtx, xty, wess):
+    def _fit_sufficient(self, xtx, xty, wess) -> None:
         _beta = np.zeros(xty.shape)
         for r in range(_beta.shape[1]):
             a, _, coefs = lars_path_gram(
