@@ -2,7 +2,13 @@ import numpy as np
 import pytest
 from sklearn.metrics import r2_score
 
-from pr3.nonlinear import DecisionTreeUNLR, UnivariateNonlinearRegressor
+from pr3.nonlinear import (
+    DecisionTreeUNLR,
+    NadarayaWatsonUNLR,
+    PiecewiseLinearUNLR,
+    PolynomialUNLR,
+    UnivariateNonlinearRegressor,
+)
 
 
 def foo(x, poly_degree=4, trig_order=3):
@@ -36,7 +42,13 @@ def test_bad_xy(random_seed, n_samples):
 
 
 @pytest.mark.parametrize(
-    "regressor,init_kwargs,r2_threshold", [(DecisionTreeUNLR, dict(max_depth=4), 0.25),],
+    "regressor,init_kwargs,r2_threshold",
+    [
+        (DecisionTreeUNLR, dict(max_depth=4), 0.25),
+        (PiecewiseLinearUNLR, dict(components=10), 0.25),
+        (PolynomialUNLR, dict(degree=3), 0.04),
+        (NadarayaWatsonUNLR, dict(bandwidth=1.0), 0.14),
+    ],
 )
 def test_regression(test_xy, regressor, init_kwargs, r2_threshold):
     x, y = test_xy
