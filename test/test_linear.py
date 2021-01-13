@@ -32,7 +32,7 @@ def test_sampler(random_seed, p_dim, q_dim, sparsity=5):
 
 
 @pytest.fixture()
-def test_xy(random_seed, p_dim, q_dim, sparsity, n_samples=10000, eps_std=100):
+def test_xy(random_seed, p_dim, q_dim, sparsity, n_samples, eps_std):
     np.random.seed(random_seed)
     eps = np.random.normal(0, eps_std, (n_samples, 1))
     beta = np.zeros((p_dim, 1))

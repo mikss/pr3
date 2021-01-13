@@ -19,3 +19,13 @@ def q_dim():
 @pytest.fixture
 def sparsity():
     return 10
+
+
+@pytest.fixture
+def n_samples():
+    return 10000
+
+
+@pytest.fixture
+def eps_std():
+    return 100
