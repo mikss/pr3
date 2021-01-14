@@ -9,14 +9,11 @@ from statsmodels.nonparametric.kernel_regression import KernelReg
 
 
 class UnivariateNonlinearRegressor(ABC):
-    _trg_range: Tuple[float, float]
-
-    def fit(self, x: np.ndarray, y: np.ndarray) -> None:
+    def fit(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray] = None) -> None:
         """Fits a univariate regressor."""
-        self._validate_univariate(x)
-        self._validate_univariate(y)
-        self._trg_range = (x.min(), x.max())
-        self._fit_univariate(x, y)
+        for v in (x, y, w):
+            self._validate_univariate(v)
+        self._fit_univariate(x, y, w)
 
     @staticmethod
     def _validate_univariate(v: np.ndarray) -> None:
@@ -27,51 +24,36 @@ class UnivariateNonlinearRegressor(ABC):
             raise ValueError("Univariate regression requires 1-D predictor and response.")
 
     @abstractmethod
-    def _fit_univariate(self, x: np.ndarray, y: np.ndarray) -> None:
+    def _fit_univariate(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray]) -> None:
         """Trains a univariate model from data."""
 
     @abstractmethod
     def predict(self, x: np.ndarray) -> np.ndarray:
         """Outputs data inferences."""
 
-    # # TODO move this upstream? introduce a test while mocking plot capability
-    # def plot(
-    #     self,
-    #     trg_x: Optional[np.ndarray] = None,
-    #     trg_y: Optional[np.ndarray] = None,
-    #     scatter_sample_ratio: float = 0.1,
-    #     **subplot_kwargs,
-    # ) -> None:
-    #     """Plots the learned one-dimensional function and (optionally) includes a scatter plot of training data."""
-    #     fig, ax = plt.subplots(**subplot_kwargs)
-    #
-    #     trg_span = self._trg_range[1] - self._trg_range[0]
-    #     trg_grid = np.linspace(
-    #         start=self._trg_range[0] - trg_span * 0.05,
-    #         stop=self._trg_range[1] + trg_span * 0.05,
-    #         num=10000,
-    #     )
-    #     ridge_function = pd.Series(index=trg_grid, data=self.predict(trg_grid.ravel()))
-    #     ridge_function.plot(ax=ax, kind="line", linewidth=5, color="r")
-    #     if all(data is not None for data in (trg_x, trg_y)):
-    #         self._validate_univariate(trg_x)
-    #         self._validate_univariate(trg_y)
-    #         trg_data = pd.Series(index=trg_x.ravel(), data=trg_y.ravel()).sample(
-    #             frac=scatter_sample_ratio
-    #         )
-    #         trg_data.plot(ax=ax, marker=".", markersize=1, linestyle="", color="k", alpha=0.5)
+    @staticmethod
+    def weighted_resampler(
+        x: np.ndarray, y: np.ndarray, w: np.ndarray, bootstrap_ratio: float = 4.0
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        n_samples = w.shape[0]
+        indices = np.random.choice(
+            a=n_samples, size=int(bootstrap_ratio * n_samples), replace=True, p=w / w.sum(),
+        )
+        x = x[indices, :]
+        y = y[indices, :]
+        return x, y
 
 
 class DecisionTreeUNLR(UnivariateNonlinearRegressor):
     decision_tree: DecisionTreeRegressor
 
-    def __init__(self, max_depth: int = 8, min_samples_leaf: int = 10):
+    def __init__(self, max_depth: int = 8, min_weight_fraction_leaf: float = 1e-3):
         self.decision_tree = DecisionTreeRegressor(
-            max_depth=max_depth, min_samples_leaf=min_samples_leaf, random_state=0
+            max_depth=max_depth, min_weight_fraction_leaf=min_weight_fraction_leaf, random_state=0
         )
 
-    def _fit_univariate(self, x: np.ndarray, y: np.ndarray) -> None:
-        self.decision_tree.fit(x, y)
+    def _fit_univariate(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray]) -> None:
+        self.decision_tree.fit(x, y, w)
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self.decision_tree.predict(x)
@@ -97,7 +79,9 @@ class PiecewiseLinearUNLR(UnivariateNonlinearRegressor):
             tol=tol,
         )
 
-    def _fit_univariate(self, x: np.ndarray, y: np.ndarray) -> None:
+    def _fit_univariate(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray]) -> None:
+        if w is not None:
+            x, y = self.weighted_resampler(x, y, w)
         self.scale = y.std()
         self.perceptron.fit(x, y.ravel() / self.scale)
 
@@ -109,13 +93,13 @@ class PolynomialUNLR(UnivariateNonlinearRegressor):
     degree: int
     polynomial: np.ndarray
 
-    def __init__(
-        self, degree: int = 6,
-    ):
+    def __init__(self, degree: int = 6):
         self.degree = degree
 
-    def _fit_univariate(self, x: np.ndarray, y: np.ndarray) -> None:
-        self.polynomial = np.polyfit(x.ravel(), y.ravel(), self.degree)
+    def _fit_univariate(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray]) -> None:
+        self.polynomial = np.polyfit(
+            x=x.ravel(), y=y.ravel(), deg=self.degree, w=np.sqrt(w.ravel()),
+        )
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return np.polyval(self.polynomial, x)
@@ -125,12 +109,12 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
     kernel: KernelReg
     bandwidth: float
 
-    def __init__(
-        self, bandwidth: float = 1,
-    ):
+    def __init__(self, bandwidth: float = 1.0):
         self.bandwidth = bandwidth
 
-    def _fit_univariate(self, x: np.ndarray, y: np.ndarray) -> None:
+    def _fit_univariate(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray]) -> None:
+        if w is not None:
+            x, y = self.weighted_resampler(x, y, w)
         self.kernel = KernelReg(endog=y, exog=x, var_type="c", bw=[self.bandwidth])
 
     def predict(self, x: np.ndarray) -> np.ndarray:
@@ -138,10 +122,10 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
 
 
 class RidgeFunctionRegistry(Enum):
-    tree: DecisionTreeUNLR
-    piecewise: PiecewiseLinearUNLR
-    polynomial: PolynomialUNLR
-    kernel: NadarayaWatsonUNLR
+    tree = DecisionTreeUNLR
+    piecewise = PiecewiseLinearUNLR
+    polynomial = PolynomialUNLR
+    kernel = NadarayaWatsonUNLR
 
     @classmethod
     def valid_mnemonics(cls) -> Set[str]:

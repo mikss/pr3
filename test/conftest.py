@@ -23,7 +23,7 @@ def sparsity():
 
 @pytest.fixture
 def n_samples():
-    return 10000
+    return 1000
 
 
 @pytest.fixture

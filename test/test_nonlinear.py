@@ -7,6 +7,7 @@ from pr3.nonlinear import (
     NadarayaWatsonUNLR,
     PiecewiseLinearUNLR,
     PolynomialUNLR,
+    RidgeFunctionRegistry,
     UnivariateNonlinearRegressor,
 )
 
@@ -24,12 +25,13 @@ def foo(x, poly_degree=4, trig_order=3):
 
 
 @pytest.fixture()
-def test_xy(random_seed, n_samples, eps_std):
+def test_xyw(random_seed, n_samples, eps_std):
     np.random.seed(random_seed)
     eps = np.random.normal(0, eps_std, (n_samples, 1))
     x = np.random.normal(0, 1, (n_samples, 1))
     y = foo(x) + eps
-    return x, y
+    w = np.ones(n_samples)
+    return x, y, w
 
 
 def test_bad_xy(random_seed, n_samples):
@@ -44,15 +46,20 @@ def test_bad_xy(random_seed, n_samples):
 @pytest.mark.parametrize(
     "regressor,init_kwargs,r2_threshold",
     [
-        (DecisionTreeUNLR, dict(max_depth=4), 0.25),
-        (PiecewiseLinearUNLR, dict(components=10), 0.25),
+        (DecisionTreeUNLR, dict(max_depth=4), 0.10),
+        (PiecewiseLinearUNLR, dict(components=10), 0.05),
         (PolynomialUNLR, dict(degree=3), 0.04),
-        (NadarayaWatsonUNLR, dict(bandwidth=1.0), 0.14),
+        (NadarayaWatsonUNLR, dict(bandwidth=1.0), 0.04),
     ],
 )
-def test_regression(test_xy, regressor, init_kwargs, r2_threshold):
-    x, y = test_xy
+def test_regression(test_xyw, regressor, init_kwargs, r2_threshold):
+    x, y, w = test_xyw
     unlr = regressor(**init_kwargs)
-    unlr.fit(x, y)
+    unlr.fit(x, y, w)
     y_hat = unlr.predict(x)
     assert r2_score(y, y_hat) > r2_threshold
+
+
+def test_registry(registry_size=4):
+    assert len(RidgeFunctionRegistry.valid_mnemonics()) == registry_size
+    assert len(RidgeFunctionRegistry.valid_regressors()) == registry_size
