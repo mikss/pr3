@@ -3,7 +3,6 @@ import pytest
 from sklearn.metrics import r2_score
 
 from pr3.nonlinear import (
-    DecisionTreeUNLR,
     NadarayaWatsonUNLR,
     PiecewiseLinearUNLR,
     PolynomialUNLR,
@@ -46,7 +45,6 @@ def test_bad_xy(random_seed, n_samples):
 @pytest.mark.parametrize(
     "regressor,init_kwargs,r2_threshold",
     [
-        (DecisionTreeUNLR, dict(max_depth=4), 0.10),
         (PiecewiseLinearUNLR, dict(components=10), 0.05),
         (PolynomialUNLR, dict(degree=3), 0.04),
         (NadarayaWatsonUNLR, dict(bandwidth=1.0), 0.04),
