@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from scipy.stats import gennorm
 from sklearn.linear_model import lars_path_gram
+from sklearn.utils.validation import check_random_state
 
 
 class ProjectionVector:
@@ -21,20 +22,26 @@ class ProjectionVector:
 
 
 class ProjectionSampler(ProjectionVector):
-    def __init__(self, p: int, q: int = 2, sparsity: int = -1, seed: Optional[int] = None):
+    def __init__(
+        self,
+        p: int,
+        q: int = 2,
+        sparsity: int = -1,
+        random_state: Optional[Union[int, np.random.RandomState]] = None,
+    ):
         """Generates a normalized random projection vector (for initialization purposes).
 
         Args:
             p: The dimension of the vector.
             q: The order of ell^q unit ball from which to sample.
             sparsity: The number of non-zero coordinates; pass -1 for a dense vector.
-            seed: NumPy random seed.
+            random_state: NumPy random state.
         """
         super().__init__(q=q)
-        np.random.seed(seed)
+        _rs = check_random_state(random_state)
         if sparsity > 0:
             q_generalized_normal = np.zeros((p, 1))
-            idxs = np.random.choice(a=p, size=sparsity, replace=False)
+            idxs = _rs.choice(a=p, size=sparsity, replace=False)
             q_generalized_normal[idxs, 0] = gennorm.rvs(beta=q, size=sparsity)
         else:
             q_generalized_normal = gennorm.rvs(beta=q, size=(p, 1))

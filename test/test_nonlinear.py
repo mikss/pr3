@@ -60,6 +60,6 @@ def test_regression(test_xyw, regressor, init_kwargs, r2_threshold):
     assert r2_score(y, y_hat) > r2_threshold
 
 
-def test_registry(registry_size=4):
+def test_registry(registry_size=3):
     assert len(RidgeFunctionRegistry.valid_mnemonics()) == registry_size
     assert len(RidgeFunctionRegistry.valid_regressors()) == registry_size

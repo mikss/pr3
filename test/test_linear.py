@@ -36,7 +36,7 @@ def test_xy(random_seed, p_dim, q_dim, sparsity, n_samples, eps_std):
     np.random.seed(random_seed)
     eps = np.random.normal(0, eps_std, (n_samples, 1))
     beta = np.zeros((p_dim, 1))
-    beta[:sparsity, :] = ProjectionSampler(p=sparsity, q=q_dim, seed=random_seed).beta
+    beta[:sparsity, :] = ProjectionSampler(p=sparsity, q=q_dim, random_state=random_seed).beta
     x = np.random.normal(0, 1, (n_samples, p_dim))
     y = x @ beta + eps
     return x, y
