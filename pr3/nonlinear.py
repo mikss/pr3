@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from enum import Enum
+from typing import Optional, Set, Tuple
 
 import numpy as np
 from sklearn.neural_network import MLPRegressor
@@ -83,7 +84,7 @@ class PiecewiseLinearUNLR(UnivariateNonlinearRegressor):
     def __init__(
         self,
         components: int = 25,
-        random_state: int = 2021,
+        random_state: Optional[int] = None,
         max_iter: int = 2000,
         tol: float = 1e-4,
     ):
@@ -134,3 +135,18 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self.kernel.fit(x)[0]
+
+
+class RidgeFunctionRegistry(Enum):
+    tree: DecisionTreeUNLR
+    piecewise: PiecewiseLinearUNLR
+    polynomial: PolynomialUNLR
+    kernel: NadarayaWatsonUNLR
+
+    @classmethod
+    def valid_mnemonics(cls) -> Set[str]:
+        return set(name for name, _ in cls.__members__.items())
+
+    @classmethod
+    def valid_regressors(cls) -> Set[UnivariateNonlinearRegressor]:
+        return set(value for _, value in cls.__members__.items())
