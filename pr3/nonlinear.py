@@ -16,6 +16,8 @@ class UnivariateNonlinearRegressor(ABC):
 
     def fit(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray] = None) -> None:
         """Fits a univariate regressor."""
+        if w is None:
+            w = np.ones(x.shape[0])
         for v in (x, y, w):
             self._validate_univariate(v)
         self._fit_univariate(x, y, w)
@@ -82,13 +84,37 @@ class PiecewiseLinearUNLR(UnivariateNonlinearRegressor):
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self.perceptron.predict(x) * self.scale
 
+    @staticmethod
+    def _drelu(a: np.ndarray):
+        return (a >= 0).astype(float)
+
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        ...  # TODO
+        """Compute the derivative of MLP.
+
+        Algebra: (where . means dot product, o means elementwise)
+            n: samples
+            p: feature dimension
+            s: stage count
+            x: (n, p) features
+            y: (n, 1) response
+            a: (1, s) intercepts
+            b: (p, s) coefficients
+            c: (1, 1) intercept
+            d: (s, 1) coefficients
+
+            y = c + relu(a + x @ b) @ d
+            dy/dx = (relu'(a + x @ b) o b) @ d
+        """
+        mlp = self.perceptron
+        a = mlp.intercepts_[0].reshape((1, -1))
+        b = mlp.coefs_[0]
+        d = mlp.coefs_[1]
+        return (self._drelu(a + x @ b) * b) @ d
 
 
 class PolynomialUNLR(UnivariateNonlinearRegressor):
     degree: int
-    polynomial: np.ndarray
+    polynomial: np.poly1d
 
     def __init__(
         self, degree: int = 6, random_state: Optional[Union[int, np.random.RandomState]] = None
@@ -97,15 +123,15 @@ class PolynomialUNLR(UnivariateNonlinearRegressor):
         self.degree = degree
 
     def _fit_univariate(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray]) -> None:
-        self.polynomial = np.polyfit(
-            x=x.ravel(), y=y.ravel(), deg=self.degree, w=np.sqrt(w.ravel()),
+        self.polynomial = np.poly1d(
+            np.polyfit(x=x.ravel(), y=y.ravel(), deg=self.degree, w=np.sqrt(w.ravel()),)
         )
 
     def predict(self, x: np.ndarray) -> np.ndarray:
-        return np.polyval(self.polynomial, x)
+        return self.polynomial(x)
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        ...  # TODO
+        return self.polynomial.deriv()(x)
 
 
 class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
@@ -114,7 +140,7 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
 
     def __init__(
         self,
-        bandwidth: float = 1.0,
+        bandwidth: float = 0.25,
         random_state: Optional[Union[int, np.random.RandomState]] = None,
     ):
         super().__init__(random_state)
@@ -129,7 +155,7 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
         return self.kernel.fit(x)[0]
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        ...  # TODO
+        return self.kernel.fit(x)[1]
 
 
 class RidgeFunctionRegistry(Enum):
