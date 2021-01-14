@@ -36,6 +36,10 @@ class UnivariateNonlinearRegressor(ABC):
     def predict(self, x: np.ndarray) -> np.ndarray:
         """Outputs data inferences."""
 
+    @abstractmethod
+    def derivative(self, x: np.ndarray) -> np.ndarray:
+        """Outputs derivatives of learned regression function"""
+
     def weighted_resampler(
         self, x: np.ndarray, y: np.ndarray, w: np.ndarray, bootstrap_ratio: float = 4.0,
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -78,6 +82,9 @@ class PiecewiseLinearUNLR(UnivariateNonlinearRegressor):
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self.perceptron.predict(x) * self.scale
 
+    def derivative(self, x: np.ndarray) -> np.ndarray:
+        ...  # TODO
+
 
 class PolynomialUNLR(UnivariateNonlinearRegressor):
     degree: int
@@ -96,6 +103,9 @@ class PolynomialUNLR(UnivariateNonlinearRegressor):
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return np.polyval(self.polynomial, x)
+
+    def derivative(self, x: np.ndarray) -> np.ndarray:
+        ...  # TODO
 
 
 class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
@@ -117,6 +127,9 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self.kernel.fit(x)[0]
+
+    def derivative(self, x: np.ndarray) -> np.ndarray:
+        ...  # TODO
 
 
 class RidgeFunctionRegistry(Enum):

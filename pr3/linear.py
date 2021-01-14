@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union
+from enum import Enum
+from typing import Optional, Set, Tuple, Union
 
 import numpy as np
 from scipy.stats import gennorm
@@ -149,3 +150,16 @@ class LeastAngleRegressionProjection(SufficientStatisticsRegressionProjection):
             _beta[:, r] = coefs[:, -1]
             print(a)
         self.beta = _beta
+
+
+class ProjectionOptimizerRegistry(Enum):
+    lower_upper = LowerUpperRegressionProjection
+    least_angle = LeastAngleRegressionProjection
+
+    @classmethod
+    def valid_mnemonics(cls) -> Set[str]:
+        return set(name for name, _ in cls.__members__.items())
+
+    @classmethod
+    def valid_regressors(cls) -> Set[SufficientStatisticsRegressionProjection]:
+        return set(value for _, value in cls.__members__.items())
