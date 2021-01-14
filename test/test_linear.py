@@ -5,6 +5,7 @@ from sklearn.metrics import r2_score
 from pr3.linear import (
     LeastAngleRegressionProjection,
     LowerUpperRegressionProjection,
+    ProjectionOptimizerRegistry,
     ProjectionSampler,
     ProjectionVector,
 )
@@ -55,3 +56,8 @@ def test_regression(test_xy, regressor, init_kwargs, r2_threshold):
     lurp.fit_normalize(x, y)
     y_hat = lurp.predict(x)
     assert r2_score(y, y_hat) > r2_threshold
+
+
+def test_registry(registry_size=2):
+    assert len(ProjectionOptimizerRegistry.valid_mnemonics()) == registry_size
+    assert len(ProjectionOptimizerRegistry.valid_regressors()) == registry_size
