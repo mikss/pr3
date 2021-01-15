@@ -4,6 +4,7 @@ import inspect
 import logging
 from typing import Dict, List, Optional, Type, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from sklearn.utils import check_array, check_random_state
@@ -31,7 +32,9 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
         projection_init_sparsity: int = -1,
         ridge_function_class: Union[str, Type[UnivariateNonlinearRegressor]] = "piecewise",
         ridge_function_kwargs: Optional[Dict] = None,
-        projection_optimizer_class: Type[SufficientStatisticsRegressionProjection] = "least_angle",
+        projection_optimizer_class: Union[
+            str, Type[SufficientStatisticsRegressionProjection]
+        ] = "least_angle",
         projection_optimizer_kwargs: Optional[Dict] = None,
         stage_tol: float = 1e-8,
         stage_maxiter: int = 128,
@@ -168,6 +171,7 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
                 f"Stage {stage}, iteration {i + 1} of max {self.stage_maxiter}, loss of {loss}."
             )
             if abs(prev_loss - loss) < self.stage_tol:
+                logging.info(f"Early stopping stage {stage} at iteration {i}.")
                 break
 
         self.projections[stage] = projection_optimizer
@@ -192,32 +196,92 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
         )
         return yhat
 
-    # TODO fix plotting functionality
-    # def plot(
-    #     self,
-    #     trg_x: Optional[np.ndarray] = None,
-    #     trg_y: Optional[np.ndarray] = None,
-    #     scatter_sample_ratio: float = 0.1,
-    #     **subplot_kwargs,
-    # ) -> None:
-    #     """Plots the learned one-dimensional function and (optionally) includes a scatter plot of training data."""
-    #     fig, ax = plt.subplots(**subplot_kwargs)
-    #
-    #     trg_span = self._trg_range[1] - self._trg_range[0]
-    #     trg_grid = np.linspace(
-    #         start=self._trg_range[0] - trg_span * 0.05,
-    #         stop=self._trg_range[1] + trg_span * 0.05,
-    #         num=10000,
-    #     )
-    #     ridge_function = pd.Series(index=trg_grid, data=self.predict(trg_grid.ravel()))
-    #     ridge_function.plot(ax=ax, kind="line", linewidth=5, color="r")
-    #     if all(data is not None for data in (trg_x, trg_y)):
-    #         self._validate_univariate(trg_x)
-    #         self._validate_univariate(trg_y)
-    #         trg_data = pd.Series(index=trg_x.ravel(), data=trg_y.ravel()).sample(
-    #             frac=scatter_sample_ratio
-    #         )
-    #         trg_data.plot(ax=ax, marker=".", markersize=1, linestyle="", color="k", alpha=0.5)
-    # _trg_range: Tuple[float, float]
-    #     self._trg_range = (x.min(), x.max())
-    # TODO introduce capability for plotting losses (with stages demarcated)
+    def plot_losses(self, ax: Optional[plt.Axes] = None):
+        """Plots losses over each stage and iteration."""
+        if ax is None:
+            _, ax = plt.subplots(1, 1, figsize=(5, 5))
+
+        iteration_losses = [loss for stage in self.loss_path for loss in stage]
+        ax.plot(iteration_losses, marker=".", linestyle="-", markersize=10)
+
+        stage_indices = np.cumsum([len(stage) for stage in self.loss_path]) - 1
+        for stage in stage_indices:
+            ax.axvline(stage, color="red", linestyle=":", alpha=0.5)
+
+        ax.set_xlabel("iteration count")
+        ax.set_ylabel("loss")
+
+    def plot(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+        scatter_sample_ratio: float = 0.1,
+        feature_names: List[str] = None,
+    ) -> None:
+        """Plots one-dimensional ridge functions and scatter plots."""
+        if feature_names is None:
+            feature_names = [f"x_{{{i}}}" for i in range(x.shape[1])]
+        elif len(feature_names) != x.shape[1]:
+            raise ValueError(
+                f"Length of `feature_names` {len(feature_names)} differs from width of `x` {x.shape[1]}."
+            )
+
+        def _coef_parser(idx, beta, name):
+            tokens = [f"{np.abs(beta):.3f}", "\\cdot", name]
+            if beta >= 0 and idx != 0:
+                tokens = ["+"] + tokens
+            else:
+                tokens = ["-"] + tokens
+
+            return " ".join(tokens)
+
+        fig, axs = plt.subplots(self.n_stages, 1, figsize=(10, 5 * self.n_stages))
+        n_samples = x.shape[0]
+        for stage in range(self.n_stages):
+            xb = x @ self.projections[stage].beta
+            xb_min = xb.min()
+            xb_max = xb.max()
+            xb_span = xb_max - xb_min
+
+            # plot the ridge function
+            xb_grid = np.linspace(
+                start=xb_min - 0.05 * xb_span, stop=xb_max + 0.05 * xb_span, num=1000,
+            )
+            yhat_grid = self.ridge_functions[stage].predict(xb_grid.reshape(-1, 1))
+            axs[stage].plot(
+                xb_grid,
+                yhat_grid,
+                linewidth=2,
+                color="r",
+                label=f"ridge function {type(self.ridge_functions[stage]).__name__}",
+            )
+
+            # plot a subset of the data
+            sample_indices = np.random.choice(
+                n_samples, size=int(n_samples * scatter_sample_ratio), replace=False
+            )
+            axs[stage].plot(
+                xb.ravel()[sample_indices],
+                y.ravel()[sample_indices],
+                marker=".",
+                markersize=2,
+                linestyle="",
+                color="k",
+                alpha=0.5,
+                label="projected data",
+            )
+
+            # labeling
+            projection_equation = " ".join(
+                [
+                    _coef_parser(idx=i, beta=b, name=feature_names[i])
+                    for i, b in enumerate(self.projections[stage].beta.ravel())
+                    if b != 0
+                ]
+            )
+            axs[stage].set_title(
+                f"Stage {stage}: $\\langle x, \\beta\\rangle = {projection_equation}$"
+            )
+            axs[stage].legend()
+
+        fig.tight_layout()
