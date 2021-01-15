@@ -62,7 +62,7 @@ def test_regression(test_xyw, regressor, init_kwargs, r2_threshold, deriv_thresh
     y = 0.5 * x ** 2.0
     unlr.fit(x, y)
     yd = unlr.derivative(x)
-    rmse = (1 / n_samples * np.sum((x - yd) ** 2.0)) ** 0.5
+    rmse = (1 / n_samples * np.sum((x.ravel() - yd) ** 2.0)) ** 0.5
     assert rmse < deriv_threshold
 
 

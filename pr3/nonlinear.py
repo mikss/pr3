@@ -16,10 +16,10 @@ class UnivariateNonlinearRegressor(ABC):
 
     def fit(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray] = None) -> None:
         """Fits a univariate regressor."""
-        if w is None:
-            w = np.ones(x.shape[0])
-        for v in (x, y, w):
-            self._validate_univariate(v)
+        self._validate_univariate(x)
+        self._validate_univariate(y)
+        if w is not None:
+            self._validate_univariate(w)
         self._fit_univariate(x, y, w)
 
     @staticmethod
@@ -65,6 +65,14 @@ class PiecewiseLinearUNLR(UnivariateNonlinearRegressor):
         tol: float = 1e-4,
         random_state: Optional[Union[int, np.random.RandomState]] = None,
     ):
+        """Instantiates a piecewise linear regression model, optimized by backpropagation.
+
+        Args:
+            components: width of the hidden layer
+            max_iter: maximum number of iterations
+            tol: optimization tolerance
+            random_state: random state which effects weight initializations
+        """
         super().__init__(random_state)
         self.perceptron = MLPRegressor(
             hidden_layer_sizes=(components,),
@@ -109,29 +117,37 @@ class PiecewiseLinearUNLR(UnivariateNonlinearRegressor):
         a = mlp.intercepts_[0].reshape((1, -1))
         b = mlp.coefs_[0]
         d = mlp.coefs_[1]
-        return (self._drelu(a + x @ b) * b) @ d
+        return ((self._drelu(a + x @ b) * b) @ d).ravel()
 
 
 class PolynomialUNLR(UnivariateNonlinearRegressor):
     degree: int
     polynomial: np.poly1d
 
-    def __init__(
-        self, degree: int = 6, random_state: Optional[Union[int, np.random.RandomState]] = None
-    ):
-        super().__init__(random_state)
+    def __init__(self, degree: int = 6):
+        """Instantiates a polynomial regression model.
+
+        Args:
+            degree: degree of polynomial to be fit
+        """
+        super().__init__(None)
         self.degree = degree
 
     def _fit_univariate(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray]) -> None:
         self.polynomial = np.poly1d(
-            np.polyfit(x=x.ravel(), y=y.ravel(), deg=self.degree, w=np.sqrt(w.ravel()),)
+            np.polyfit(
+                x=x.ravel(),
+                y=y.ravel(),
+                deg=self.degree,
+                w=np.sqrt(w.ravel()) if w is not None else w,
+            )
         )
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self.polynomial(x)
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        return self.polynomial.deriv()(x)
+        return self.polynomial.deriv()(x).ravel()
 
 
 class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
@@ -143,6 +159,12 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
         bandwidth: float = 0.25,
         random_state: Optional[Union[int, np.random.RandomState]] = None,
     ):
+        """Instantiates a kernel regression model.
+
+        Args:
+            bandwidth: affects the scale on which to locally average samples
+            random_state: random state which effects sample bootstrapping
+        """
         super().__init__(random_state)
         self.bandwidth = bandwidth
 
@@ -155,7 +177,7 @@ class NadarayaWatsonUNLR(UnivariateNonlinearRegressor):
         return self.kernel.fit(x)[0]
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
-        return self.kernel.fit(x)[1]
+        return self.kernel.fit(x)[1].ravel()
 
 
 class RidgeFunctionRegistry(Enum):

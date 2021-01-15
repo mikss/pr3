@@ -52,7 +52,7 @@ class ProjectionSampler(ProjectionVector):
 
 class SufficientStatisticsRegressionProjection(ABC, ProjectionVector):
     def fit(self, x: np.ndarray, y: np.ndarray, w: Optional[np.ndarray] = None) -> None:
-        """Fits weighted least squares (WLS) linear regression model by first computing sufficient statistics.
+        """Fits weighted least squares (WLS) linear regression model via sufficient statistics.
 
         Args:
             x: design matrix of shape (n_samples, n_features)
@@ -82,7 +82,7 @@ class SufficientStatisticsRegressionProjection(ABC, ProjectionVector):
     def compute_sufficient_statistics(
         x: np.ndarray, y: np.ndarray, w: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Computes (weighted) sufficient statistics for WLS regression (Gram matrix xtx, cross matrix xty)."""
+        """Computes (weighted) sufficient statistics for WLS regression (Gram xtx, cross xty)."""
         xtx = np.multiply(x, w).T @ x / w.sum()
         xty = np.multiply(x, w).T @ y / w.sum()
         return xtx, xty
@@ -101,10 +101,11 @@ class LowerUpperRegressionProjection(SufficientStatisticsRegressionProjection):
     ridge: float
 
     def __init__(self, q: int = 2, ridge: float = 0.0):
-        """Instantiates a WLS linear regression model with ridge regularization and q-normalized beta.
+        """Instantiates a WLS linear model with ridge regularization and q-normalized beta.
 
-        This implementation computes regression coefficients by solving a system of linear equations via the LU
-        decomposition, which is the technique implemented by `gesv`, the LAPACK routine called by `np.linalg.solve`.
+        This implementation computes regression coefficients by solving a system of linear equations
+        via the LU decomposition, which is the technique implemented by `gesv`, the LAPACK routine
+        called by `np.linalg.solve`.
 
         Args:
             q: The order of ell^q norm with which to normalize resultant beta.
@@ -120,13 +121,15 @@ class LowerUpperRegressionProjection(SufficientStatisticsRegressionProjection):
 class LeastAngleRegressionProjection(SufficientStatisticsRegressionProjection):
     max_iter: int
     min_corr: float
+    alpha: np.ndarray
 
-    def __init__(self, q: int = 2, max_iter: int = 100, min_corr: float = 5e-4):
+    def __init__(self, q: int = 2, max_iter: int = 100, min_corr: float = 1e-4):
         """Instantiates a WLS linear regression model with sparse and q-normalized beta.
 
-        This implementation computes regression coefficients by iteratively traversing the LASSO regularization path,
-        which serves as an efficient way to solve the l1-regularized least squares optimization problem (on par with,
-        say, FISTA, but typically more efficient than black-box quadratic programming methods).
+        This implementation computes regression coefficients by iteratively traversing the LASSO
+        regularization path, which serves as an efficient way to solve the l1-regularized least
+        squares optimization problem (on par with, say, FISTA, but typically more efficient than
+        black-box quadratic programming methods).
 
         Args:
             q: The order of ell^q norm with which to normalize resultant beta.
@@ -137,19 +140,15 @@ class LeastAngleRegressionProjection(SufficientStatisticsRegressionProjection):
         self.min_corr = min_corr
 
     def _fit_sufficient(self, xtx, xty, wess) -> None:
-        _beta = np.zeros(xty.shape)
-        for r in range(_beta.shape[1]):
-            a, _, coefs = lars_path_gram(
-                Xy=xty[:, 0],
-                Gram=xtx,
-                n_samples=wess,
-                max_iter=self.max_iter,
-                alpha_min=self.min_corr,
-                method="lasso",
-            )
-            _beta[:, r] = coefs[:, -1]
-            print(a)
-        self.beta = _beta
+        self.alpha, _, coefs = lars_path_gram(
+            Xy=xty[:, 0],
+            Gram=xtx,
+            n_samples=wess,
+            max_iter=self.max_iter,
+            alpha_min=self.min_corr,
+            method="lasso",
+        )
+        self.beta = coefs[:, [-1]]
 
 
 class ProjectionOptimizerRegistry(Enum):
