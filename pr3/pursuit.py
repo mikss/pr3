@@ -202,14 +202,15 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
             _, ax = plt.subplots(1, 1, figsize=(5, 5))
 
         iteration_losses = [loss for stage in self.loss_path for loss in stage]
-        ax.plot(iteration_losses, marker=".", linestyle="-", markersize=10)
+        ax.plot(iteration_losses, marker=".", linestyle=":", markersize=3, linewidth=1)
 
         stage_indices = np.cumsum([len(stage) for stage in self.loss_path]) - 1
         for stage in stage_indices:
-            ax.axvline(stage, color="red", linestyle=":", alpha=0.5)
+            ax.axvline(stage, color="red", linestyle="--", alpha=0.25)
 
         ax.set_xlabel("iteration count")
         ax.set_ylabel("loss")
+        ax.set_title("loss across iterations")
 
     def plot(
         self,
@@ -217,6 +218,8 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
         y: np.ndarray,
         scatter_sample_ratio: float = 0.1,
         feature_names: List[str] = None,
+        fig_height: float = 5.0,
+        fig_width: float = 10.0,
     ) -> None:
         """Plots one-dimensional ridge functions and scatter plots."""
         if feature_names is None:
@@ -235,7 +238,7 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
 
             return " ".join(tokens)
 
-        fig, axs = plt.subplots(self.n_stages, 1, figsize=(10, 5 * self.n_stages))
+        fig, axs = plt.subplots(self.n_stages, 1, figsize=(fig_width, fig_height * self.n_stages))
         n_samples = x.shape[0]
         for stage in range(self.n_stages):
             xb = x @ self.projections[stage].beta

@@ -144,7 +144,7 @@ class PolynomialUNLR(UnivariateNonlinearRegressor):
         )
 
     def predict(self, x: np.ndarray) -> np.ndarray:
-        return self.polynomial(x)
+        return self.polynomial(x).ravel()
 
     def derivative(self, x: np.ndarray) -> np.ndarray:
         return self.polynomial.deriv()(x).ravel()
