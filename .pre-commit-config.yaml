@@ -30,11 +30,6 @@ repos:
         entry: make requirements.txt
         language: system
         files: ^(requirements.txt|.*\.in)$
-      # - id: clear-notebook-output
-      #   name: Clear notebook output
-      #   entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace
-      #   language: system
-      #   files: ^.*\.ipynb$
   # Keep this hook as the very last!
   - repo: local
     hooks:
