@@ -240,6 +240,8 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
 
         fig, axs = plt.subplots(self.n_stages, 1, figsize=(fig_width, fig_height * self.n_stages))
         n_samples = x.shape[0]
+        y_min, y_max = y.min(), y.max()
+        y_span = y_max - y_min
         for stage in range(self.n_stages):
             xb = x @ self.projections[stage].beta
             xb_min = xb.min()
@@ -286,5 +288,6 @@ class PracticalProjectionPursuitRegressor(BaseEstimator, TransformerMixin, Regre
                 f"Stage {stage}: $\\langle x, \\beta\\rangle = {projection_equation}$"
             )
             axs[stage].legend()
+            axs[stage].set_ylim(y_min - 0.5 * y_span, y_max + 0.5 * y_span)
 
         fig.tight_layout()
