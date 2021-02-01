@@ -26,3 +26,11 @@ components of this repository's implementation include:
 * in the nonlinear step of the alternating minimization (to compute an optimal ridge function), we supplement the
  standard capability for polynomial regression with options for piecewise linear regression (through a one-hidden-layer
  perceptron with rectilinear activation) and kernel regression (Nadaraya-Watson).
+
+Visualization capability includes loss plotting functionality,
+
+![](iteration_loss.png?raw=true)
+
+and ridge function (univariate nonlinear models in projected space) visualization,
+
+![](ridge_functions.png?raw=true)
